@@ -70,7 +70,7 @@ class OffHeapRingBufferTestSuite extends munit.FunSuite {
     assertEquals(obtained, expected)
   }
 
-  segmentAllocator.test("should check offset value while multi thread processing") { allocator =>
+  segmentAllocator.test("should check final currentSetOffset value while multi thread processing") { allocator =>
     val chars = Array('a', 'b', 'c')
     val memorySegment = allocator.allocateArray(ValueLayout.ADDRESS, chars.length);
     for (i <- chars.indices) {
