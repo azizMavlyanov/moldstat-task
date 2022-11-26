@@ -1,6 +1,11 @@
 package com.moldstat
 
 import java.lang.foreign.{SegmentAllocator, ValueLayout}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class OffHeapRingBufferTestSuite extends munit.FunSuite {
   val segmentAllocator: FunFixture[SegmentAllocator] = FunFixture[SegmentAllocator] (
@@ -63,6 +68,32 @@ class OffHeapRingBufferTestSuite extends munit.FunSuite {
     val obtained = ringBuffer.offset(memorySegment)
     val expected = false
     assertEquals(obtained, expected)
+  }
+
+  segmentAllocator.test("should check offset value while multi thread processing") { allocator =>
+    val chars = Array('a', 'b', 'c')
+    val memorySegment = allocator.allocateArray(ValueLayout.ADDRESS, chars.length);
+    for (i <- chars.indices) {
+      memorySegment.setAtIndex(ValueLayout.JAVA_CHAR, i, chars(i))
+    }
+    val ringBuffer: OffHeapRingBufferImpl = OffHeapRingBufferImpl(48, 3)
+
+    val numberOfThreads = 5
+    val latch = new CountDownLatch(numberOfThreads)
+
+    for (_ <- 0 to numberOfThreads) {
+      Future {
+        try ringBuffer.offset(memorySegment)
+        catch {
+          case e: InterruptedException =>
+          // Handle exception
+        }
+        latch.countDown()
+      }
+    }
+
+    latch.await()
+    assertEquals(numberOfThreads, ringBuffer.currentSetOffset.toInt)
   }
 
 }
